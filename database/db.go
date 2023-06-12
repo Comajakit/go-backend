@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/comajakit/go-backend/config"
+	"github.com/Comajakit/go-backend/config"
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
