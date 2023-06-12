@@ -3,8 +3,9 @@ package db
 import (
 	"fmt"
 	"log"
+	"pokemon/config"
+	"pokemon/database/models"
 
-	"github.com/Comajakit/go-backend/config"
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -17,11 +18,11 @@ func InitDB() {
 
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		viper.GetString("db.host"),
-		viper.GetString("db.port"),
-		viper.GetString("db.user"),
-		viper.GetString("db.password"),
-		viper.GetString("db.name"),
+		viper.GetString("DB_HOST"),
+		viper.GetString("DB_PORT"),
+		viper.GetString("DB_USER"),
+		viper.GetString("DB_PASSWORD"),
+		viper.GetString("DB_NAME"),
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
