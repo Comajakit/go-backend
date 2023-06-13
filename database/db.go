@@ -31,7 +31,5 @@ func InitDB() {
 	}
 
 	DB = db
-
-	// AutoMigrate will create the User table if it doesn't exist
-	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.User{}, &models.UserJob{})
 }
