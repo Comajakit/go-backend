@@ -1,27 +1,27 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	db "pokemon/database"
 	"pokemon/database/models"
 	itf "pokemon/interfaces"
+
+	"github.com/gin-gonic/gin"
 )
 
-func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
-
-	fmt.Println("Calling Created User")
+func CreateUserHandlerGin(c *gin.Context) {
+	fmt.Println("Calling Create User Gin")
 
 	var user models.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Save the user to the database or perform any necessary operations
-	fmt.Println(user)
+	// fmt.Println(user)
+
 	db.DB.Create(&user)
 
 	// Retrieve the user
@@ -35,23 +35,22 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the created user as a response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusOK, response)
 }
 
-func DeleteRecentUserHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteRecentUserHandlerGin(c *gin.Context) {
 	// Retrieve the latest user ID
 	var latestUser models.User
 	err := db.DB.Order("id desc").First(&latestUser).Error
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Delete the latest user directly by ID
 	err = db.DB.Delete(&models.User{}, latestUser.ID).Error
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -61,12 +60,5 @@ func DeleteRecentUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the Content-Type header to application/json
-	w.Header().Set("Content-Type", "application/json")
-
-	// Encode the response map as JSON and write it to the response body
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	c.JSON(http.StatusOK, response)
 }
