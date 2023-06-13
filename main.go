@@ -1,19 +1,20 @@
 package main
 
 import (
-	"log"
-	"net/http"
 	"pokemon/config"
 	db "pokemon/database"
-	"pokemon/routers"
+	"pokemon/handlers"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	config.InitConfig()
 	db.InitDB()
+	r := gin.Default()
+	r.POST("/users", handlers.CreateUserHandlerGin)
+	r.POST("/del-users", handlers.DeleteRecentUserHandlerGin)
 
-	router := routers.SetupRouter()
-
-	log.Fatal(http.ListenAndServe(":3000", router))
+	r.Run(":3000")
 
 }
