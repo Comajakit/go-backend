@@ -12,23 +12,36 @@ import (
 
 func CreateUserHandlerGin(c *gin.Context) {
 	fmt.Println("Calling Create User Gin")
-
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	if err := c.ShouldBindJSON(&itf.CreateUserRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	user := models.User{
+		Name:  itf.CreateUserRequest.Name,
+		Email: itf.CreateUserRequest.Email,
+	}
 
-	// Save the user to the database or perform any necessary operations
-	// fmt.Println(user)
+	if err := db.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-	db.DB.Create(&user)
+	userJob := models.UserJob{
+		UserID:         user.ID,
+		JobTitle:       itf.CreateUserRequest.Job,
+		JobDescription: itf.CreateUserRequest.JobDesc,
+	}
+
+	if err := db.DB.Create(&userJob).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	// Retrieve the user
 	var retrievedUser models.User
 	db.DB.Last(&retrievedUser)
 
-	response := itf.UserResponse{
+	response := itf.CreateUserResponse{
 		ID:    retrievedUser.ID,
 		Name:  retrievedUser.Name,
 		Email: retrievedUser.Email,
