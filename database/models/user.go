@@ -9,7 +9,7 @@ type User struct {
 	DisplayName string
 	Username    string
 	Password    string
-	Email       string
+	Email       string `gorm:"unique"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

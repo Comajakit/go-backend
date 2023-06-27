@@ -51,7 +51,9 @@ func hashPassword(password string) (string, error) {
 	}
 	return string(hash), nil
 }
+func validatePassword(username string, password string) {
 
+}
 func DeleteRecentUserHandlerGin(c *gin.Context) {
 	// Retrieve the latest user ID
 	var latestUser models.User
