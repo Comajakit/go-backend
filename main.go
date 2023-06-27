@@ -12,7 +12,7 @@ func main() {
 	config.InitConfig()
 	db.InitDB()
 	r := gin.Default()
-	r.POST("/users", handlers.CreateUserHandlerGin)
+	r.POST("/users", handlers.RegisterHandler)
 	r.POST("/del-users", handlers.DeleteRecentUserHandlerGin)
 
 	r.Run(":3000")

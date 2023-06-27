@@ -5,9 +5,11 @@ import (
 )
 
 type User struct {
-	ID        uint `gorm:"primaryKey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Name      string
-	Email     string
+	ID          uint `gorm:"primaryKey"`
+	DisplayName string
+	Username    string
+	Password    string
+	Email       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
