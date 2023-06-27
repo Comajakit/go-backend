@@ -1,8 +1,7 @@
 package interfaces
 
-var CreateUserRequest struct {
-	Name    string `json:"name"`
-	Email   string `json:"email"`
-	Job     string `json:"job"`
-	JobDesc string `json:"jobdesc"`
+type CreateUserRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }

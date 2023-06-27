@@ -1,54 +1,55 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	db "pokemon/database"
 	"pokemon/database/models"
 	itf "pokemon/interfaces"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateUserHandlerGin(c *gin.Context) {
-	fmt.Println("Calling Create User Gin")
-	if err := c.ShouldBindJSON(&itf.CreateUserRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+func RegisterHandler(c *gin.Context) {
+	// Parse the request body
+	var req itf.CreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
 		return
 	}
-	user := models.User{
-		Name:  itf.CreateUserRequest.Name,
-		Email: itf.CreateUserRequest.Email,
+	// Validate the user data
+	if req.Username == "" || req.Email == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username, email, and password are required fields"})
+		return
 	}
 
+	user := models.User{
+		Username: req.Username,
+		Email:    req.Email,
+	}
+
+	hashedPassword, err := hashPassword(req.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	user.Password = hashedPassword
+	// Create user in database
 	if err := db.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	userJob := models.UserJob{
-		UserID:         user.ID,
-		JobTitle:       itf.CreateUserRequest.Job,
-		JobDescription: itf.CreateUserRequest.JobDesc,
+	// Respond with the created user
+	c.JSON(http.StatusCreated, user)
+}
+
+func hashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
 	}
-
-	if err := db.DB.Create(&userJob).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Retrieve the user
-	var retrievedUser models.User
-	db.DB.Last(&retrievedUser)
-
-	response := itf.CreateUserResponse{
-		ID:    retrievedUser.ID,
-		Name:  retrievedUser.Name,
-		Email: retrievedUser.Email,
-	}
-
-	// Return the created user as a response
-	c.JSON(http.StatusOK, response)
+	return string(hash), nil
 }
 
 func DeleteRecentUserHandlerGin(c *gin.Context) {
