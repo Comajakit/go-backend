@@ -1,13 +1,14 @@
 package handlers
 
 import (
+	db "go-backend/database"
+	"go-backend/database/models"
+	itf "go-backend/interfaces"
+	util "go-backend/utils"
 	"net/http"
-	db "pokemon/database"
-	"pokemon/database/models"
-	itf "pokemon/interfaces"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func RegisterHandler(c *gin.Context) {
@@ -28,7 +29,7 @@ func RegisterHandler(c *gin.Context) {
 		Email:    req.Email,
 	}
 
-	hashedPassword, err := hashPassword(req.Password)
+	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
@@ -44,16 +45,46 @@ func RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-func hashPassword(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
+func UserLogin(c *gin.Context) {
+	var req itf.UserLoginRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+		return
 	}
-	return string(hash), nil
-}
-func validatePassword(username string, password string) {
+
+	result, err := util.ValidatePassword(req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if result {
+		// Store the user's login information in the session
+		session := sessions.Default(c)
+		session.Set("username", req.Username)
+		session.Save()
+
+		c.JSON(http.StatusOK, gin.H{"message": "Success"})
+	} else {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Fail"})
+	}
 
 }
+
+func ProtectedRoute(c *gin.Context) {
+	// Check if the user is authenticated
+	session := sessions.Default(c)
+	username := session.Get("username")
+	if username == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	// Proceed with handling the protected resource
+	c.JSON(http.StatusOK, gin.H{"message": "Protected resource"})
+}
+
 func DeleteRecentUserHandlerGin(c *gin.Context) {
 	// Retrieve the latest user ID
 	var latestUser models.User
