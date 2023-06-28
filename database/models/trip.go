@@ -2,11 +2,15 @@ package models
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Trip struct {
-	ID        uint   `gorm:"primaryKey"`
-	TripCode  string `gorm:"uniqueKey"`
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	TripCode  string    `gorm:"uniqueKey"`
+	UserId    uuid.UUID `gorm:"type:uuid"`
+	User      User      `gorm:"foreignKey:UserId"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
