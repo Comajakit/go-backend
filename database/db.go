@@ -2,9 +2,9 @@ package db
 
 import (
 	"fmt"
+	"go-backend/config"
+	"go-backend/database/models"
 	"log"
-	"pokemon/config"
-	"pokemon/database/models"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
@@ -32,4 +32,21 @@ func InitDB() {
 
 	DB = db
 	db.AutoMigrate(&models.User{}, &models.UserJob{})
+}
+
+func GetHashedPassword(username string) (string, error) {
+	var user models.User
+
+	// Find the user with the given username
+	if err := DB.Where("username = ?", username).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// User not found
+
+			return "", nil
+		}
+		// An error occurred during the query
+		return "", err
+	}
+
+	return user.Password, nil
 }
