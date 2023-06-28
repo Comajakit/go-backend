@@ -31,7 +31,13 @@ func InitDB() {
 	}
 
 	DB = db
-	db.AutoMigrate(&models.User{}, &models.UserJob{})
+	db.AutoMigrate(
+		&models.User{},
+		&models.UserJob{},
+		&models.Trip{},
+		&models.TripCategory{},
+		&models.TripDetail{},
+	)
 }
 
 func GetHashedPassword(username string) (string, error) {

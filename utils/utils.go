@@ -4,6 +4,8 @@ import (
 	"fmt"
 	db "go-backend/database"
 
+	"github.com/google/uuid"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -13,6 +15,13 @@ func HashPassword(password string) (string, error) {
 		return "", err
 	}
 	return string(hash), nil
+}
+func GenerateUUID() (uuid.UUID, error) {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	return id, nil
 }
 func ValidatePassword(username string, password string) (bool, error) {
 	hashedPassword, err := db.GetHashedPassword(username)

@@ -60,14 +60,32 @@ func UserLogin(c *gin.Context) {
 	}
 
 	if result {
-		// Store the user's login information in the session
+		// Create session
 		session := sessions.Default(c)
-		session.Set("username", req.Username)
-		session.Save()
+		session.Set(req.Username, req.Username)
 
-		c.JSON(http.StatusOK, gin.H{"message": "Success"})
+		// Set session expiration
+		expiration := 3 * 60 * 60 // Default session expiration is 3 hours
+		if req.Forever {
+			expiration = 30 * 24 * 60 * 60 // Set session to expire in 30 days (forever)
+		}
+
+		session.Options(sessions.Options{
+			MaxAge:   expiration,
+			HttpOnly: true,
+			Secure:   true, // Set to true if using HTTPS
+		})
+
+		if err := session.Save(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to save session"})
+			return
+		}
+
+		// Return success response
+		c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Fail"})
+		// Return failure response
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
 	}
 
 }
