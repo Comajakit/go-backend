@@ -33,7 +33,6 @@ func InitDB() {
 	DB = db
 	db.AutoMigrate(
 		&models.User{},
-		&models.UserJob{},
 		&models.Trip{},
 		&models.TripCategory{},
 		&models.TripDetail{},
@@ -47,7 +46,7 @@ func GetHashedPassword(username string) (string, error) {
 	if err := DB.Where("username = ?", username).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// User not found
-
+			fmt.Println("user not found")
 			return "", nil
 		}
 		// An error occurred during the query
