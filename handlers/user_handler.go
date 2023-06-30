@@ -54,6 +54,7 @@ func UserLogin(c *gin.Context) {
 	}
 
 	result, err := util.ValidatePassword(req.Username, req.Password)
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

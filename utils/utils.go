@@ -28,7 +28,9 @@ func ValidatePassword(username string, password string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+
 	if err == nil {
 		// Password is valid
 		return true, nil
