@@ -1,11 +1,13 @@
 package handlers
 
 import (
-	db "go-backend/database"
+	"net/http"
+
 	"go-backend/database/models"
 	itf "go-backend/interfaces"
 	util "go-backend/utils"
-	"net/http"
+
+	db "go-backend/database"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"

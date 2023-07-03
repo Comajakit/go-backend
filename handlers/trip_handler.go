@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	itf "go-backend/interfaces"
 	"net/http"
+
+	itf "go-backend/interfaces"
 
 	"github.com/gin-gonic/gin"
 )

@@ -3,8 +3,9 @@ package db
 import (
 	"fmt"
 	"go-backend/config"
-	"go-backend/database/models"
 	"log"
+
+	"go-backend/database/models"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
