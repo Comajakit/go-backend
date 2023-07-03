@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"go-backend/database/models"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func RegisterHandler(c *gin.Context) {
@@ -63,9 +65,13 @@ func UserLogin(c *gin.Context) {
 	}
 
 	if result {
+		// Generate a new access token
+		accessToken := uuid.New().String()
+
 		// Create session
 		session := sessions.Default(c)
-		session.Set(req.Username, req.Username)
+		session.Set("token", req.Username)
+		session.Set(accessToken, req.Username+"xxx")
 
 		// Set session expiration
 		expiration := 3 * 60 * 60 // Default session expiration is 3 hours
@@ -78,20 +84,69 @@ func UserLogin(c *gin.Context) {
 			HttpOnly: true,
 			Secure:   true, // Set to true if using HTTPS
 		})
+		rm := session.Get("token")
+		fmt.Println(rm)
+		rm2 := session.Get(accessToken)
+		fmt.Println(rm2)
 
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to save session"})
 			return
 		}
 
-		// Return success response
-		c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+		// Return success response with the access token
+		c.JSON(http.StatusOK, gin.H{"accessToken": accessToken})
 	} else {
 		// Return failure response
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
 	}
-
 }
+
+// func UserLogin(c *gin.Context) {
+// 	var req itf.UserLoginRequest
+
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+// 		return
+// 	}
+
+// 	result, err := util.ValidatePassword(req.Username, req.Password)
+
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	if result {
+// 		// Create session
+// 		session := sessions.Default(c)
+// 		session.Set(req.Username, req.Username)
+
+// 		// Set session expiration
+// 		expiration := 3 * 60 * 60 // Default session expiration is 3 hours
+// 		if req.Forever {
+// 			expiration = 30 * 24 * 60 * 60 // Set session to expire in 30 days (forever)
+// 		}
+
+// 		session.Options(sessions.Options{
+// 			MaxAge:   expiration,
+// 			HttpOnly: true,
+// 			Secure:   true, // Set to true if using HTTPS
+// 		})
+
+// 		if err := session.Save(); err != nil {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to save session"})
+// 			return
+// 		}
+
+// 		// Return success response
+// 		c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+// 	} else {
+// 		// Return failure response
+// 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
+// 	}
+
+// }
 
 func ProtectedRoute(c *gin.Context) {
 	// Check if the user is authenticated

@@ -12,7 +12,7 @@ type TripDetail struct {
 	UpdatedAt        time.Time
 	TripID           uuid.UUID
 	Trip             Trip `gorm:"foreignKey:TripID"`
-	TripCategoryID   uuid.UUID
+	TripCategoryID   uint
 	TripCategory     TripCategory `gorm:"foreignKey:TripCategoryID"`
 	TotalVacationDay uint         // Total number of vacation days for the trip
 	TotalMember      uint         // Total number of members participating in the trip

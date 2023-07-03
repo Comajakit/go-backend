@@ -13,10 +13,18 @@ func SetupRouter() *gin.Engine {
 	store := cookie.NewStore([]byte("secret")) // Replace "secret" with your own secret key
 	r.Use(sessions.Sessions("mysession", store))
 
-	r.POST("/users", handlers.RegisterHandler)
-	r.POST("/del-users", handlers.DeleteRecentUserHandlerGin)
-	r.POST("/login", handlers.UserLogin)
+	user_prefix_path := "v1/user"
+	trip_prefix_path := "v1/trip"
+	//user
+	r.POST(user_prefix_path+"/create", handlers.RegisterHandler)
+	r.POST(user_prefix_path+"/delete", handlers.DeleteRecentUserHandlerGin)
+	r.POST(user_prefix_path+"/login", handlers.UserLogin)
+
+	r.POST(trip_prefix_path+"/create", handlers.CreateTrip)
 	r.GET("/protected", handlers.ProtectedRoute)
+
+	r.POST("/setvalue", handlers.SetValueHandler)
+	r.GET("/getvalue", handlers.GetValueHandler)
 
 	return r
 }
