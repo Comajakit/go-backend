@@ -37,6 +37,7 @@ func InitDB() {
 		&models.Trip{},
 		&models.TripCategory{},
 		&models.TripDetail{},
+		&models.UserTrip{},
 	)
 }
 
