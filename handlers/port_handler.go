@@ -57,7 +57,7 @@ func CreatePort(c *gin.Context) {
 
 }
 
-func AddPortStrategy(c *gin.Context) {
+func CreatePortStrategy(c *gin.Context) {
 	var req itf.CreateStrategyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
@@ -133,6 +133,100 @@ func AddPortStrategy(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, response)
+}
+
+func UpdateStrategy(c *gin.Context) {
+	var req itf.UpdateStrategyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+		return
+	}
+	_, user, port, err := getPreRequire(c, req.PortName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	portStrategy, err := dao.GetPortStrategyByPortID(port.ID)
+	if err := db.DB.Where("strategy_profile_id = ?", portStrategy.ID).Delete(&models.ThemePercentagePair{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	totalValue := 0.0
+	for _, theme := range req.Theme {
+		for _, themeValue := range theme {
+			floatValue, err := strconv.ParseFloat(themeValue, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme value"})
+				return
+			}
+
+			totalValue += floatValue
+		}
+	}
+	var themeInfoList []types.ThemeInfo
+	for _, theme := range req.Theme {
+		for themeName, themeValue := range theme {
+			floatValue, err := strconv.ParseFloat(themeValue, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme value"})
+				return
+			}
+
+			percent := floatValue / totalValue
+
+			themePair := models.ThemePercentagePair{
+				StrategyProfileID: portStrategy.ID,
+				Theme:             themeName,
+				Percentage:        percent,
+			}
+			if err := db.DB.Create(&themePair).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			percentageStr := strconv.FormatFloat(percent*100, 'f', 2, 64)
+			themeInfo := types.ThemeInfo{
+				ThemeName:  themeName,
+				Percentage: percentageStr + "%",
+			}
+			themeInfoList = append(themeInfoList, themeInfo)
+		}
+	}
+
+	response := map[string]interface{}{
+		"ID":           portStrategy.ID,
+		"portName":     port.PortName,
+		"strategyName": portStrategy.StrategyName,
+		"userID":       user.ID,
+		"portID":       port.ID,
+		"totalTheme":   len(themeInfoList),
+		"themeInfo":    themeInfoList,
+	}
+
+	c.JSON(http.StatusCreated, response)
+}
+
+func GetCurrentDivPercent(c *gin.Context) {
+	portName := c.Query("portName")
+	_, _, port, err := getPreRequire(c, portName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	stocks, err := dao.GetStocksByPortID(port.ID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Failed to retrieve stocks"})
+		return
+	}
+	sum := 0.0
+	for _, stock := range stocks {
+		sum += stock.DivPercentPort
+	}
+
+	sumStr := strconv.FormatFloat(sum, 'f', 2, 64)
+
+	c.JSON(http.StatusOK, gin.H{"divPercentSum": sumStr})
+
 }
 
 func AddStock(c *gin.Context) {
