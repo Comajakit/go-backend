@@ -14,17 +14,20 @@ func SetupRouter() *gin.Engine {
 	r.Use(sessions.Sessions("mysession", store))
 
 	user_prefix_path := "v1/user"
-	trip_prefix_path := "v1/trip"
+	port_prefix_path := "v1/port"
 	//user
 	r.POST(user_prefix_path+"/create", handlers.RegisterHandler)
 	r.POST(user_prefix_path+"/delete", handlers.DeleteRecentUserHandlerGin)
 	r.POST(user_prefix_path+"/login", handlers.UserLogin)
 
-	r.POST(trip_prefix_path+"/create", handlers.CreateTrip)
+	//trip
 	r.GET("/protected", handlers.ProtectedRoute)
 
-	r.POST("/setvalue", handlers.SetValueHandler)
-	r.GET("/getvalue", handlers.GetValueHandler)
+	//port
+	r.POST(port_prefix_path+"/create", handlers.CreatePort)
+	r.POST(port_prefix_path+"/add-strategy", handlers.AddPortStrategy)
+	r.POST(port_prefix_path+"/add-stock", handlers.AddStock)
+	r.POST(port_prefix_path+"/check", handlers.CheckToken)
 
 	return r
 }
