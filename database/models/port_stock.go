@@ -21,7 +21,7 @@ type PortStock struct {
 	StockSymbol       string `gorm:"uniqueIndex:port_stock_key"`
 	Volume            uint
 	AveragePrice      float64
-	StockType         string
+	StockType         string `gorm:"default:'Unknown'"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

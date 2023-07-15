@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -179,20 +178,7 @@ func AddStock(c *gin.Context) {
 
 	stocksLen := len(stocks)
 	totalSum := 0.0
-	if stocksLen > 0 {
-		for _, stock := range stocks {
-			totalSum += stock.Total
-		}
-	}
-
-	for _, stock := range req.Stock {
-		averagePrice, err := strconv.ParseFloat(stock.AveragePrice, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid average price value"})
-			return
-		}
-		totalSum += averagePrice * float64(stock.Volume)
-	}
+	totalSum, err = getTotalStockSumWithRequest(stocks, req.Stock)
 
 	if stocksLen > 0 {
 		for i := range stocks {
@@ -226,11 +212,13 @@ func AddStock(c *gin.Context) {
 			PercentageInPort:  (total / totalSum) * 100,
 			DivPercentPort:    (expectedDivReturn / totalSum) * 100,
 			AveragePrice:      averagePrice,
-			StockType:         stock.Type,
 			DivInPercent:      divInPercent,
 			Volume:            uint(stock.Volume),
 
 			// Add any additional fields as necessary
+		}
+		if stock.Type != nil {
+			stockInfo.StockType = *stock.Type
 		}
 
 		if err := db.DB.Create(&stockInfo).Error; err != nil {
@@ -255,6 +243,164 @@ func AddStock(c *gin.Context) {
 
 }
 
+func UpdateStock(c *gin.Context) {
+	var req itf.UpdateStockRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+		return
+	}
+
+	username, err := getNameFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := getUserByUsername(username)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	port, err := getUserPortByIDAndName(user.ID, req.PortName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User port not found"})
+		return
+	}
+
+	for _, stock := range req.Stock {
+		currentStock, err := getStockByPortIDAndSymbol(port.ID, stock.Symbol)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stock"})
+			return
+		}
+		divPerShare, err := strconv.ParseFloat(stock.DivPerShare, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid dividend per share value"})
+			return
+		}
+
+		averagePrice, err := strconv.ParseFloat(stock.AveragePrice, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid average price value"})
+			return
+		}
+		currentStock.Volume = uint(stock.Volume)
+		currentStock.DivPerShare = divPerShare
+		currentStock.AveragePrice = averagePrice
+		if stock.Type != nil {
+			currentStock.StockType = *stock.Type
+		}
+
+		if err := db.DB.Save(currentStock).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+	}
+	err = calibratePortByPortID(port.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	response := map[string]interface{}{
+		"ID":           port.ID,
+		"portName":     port.PortName,
+		"userID":       user.ID,
+		"stockUpdated": req.Stock,
+	}
+	c.JSON(http.StatusOK, response)
+
+}
+
+func DeleteStock(c *gin.Context) {
+	var req itf.DeleteStockRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+		return
+	}
+
+	username, err := getNameFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := getUserByUsername(username)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	port, err := getUserPortByIDAndName(user.ID, req.PortName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User port not found"})
+		return
+	}
+	var deletedSymbols []string
+	for _, stock := range req.Stock {
+		currentStock, err := getStockByPortIDAndSymbol(port.ID, stock)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stock"})
+			return
+		}
+
+		if err := db.DB.Delete(currentStock).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		deletedSymbols = append(deletedSymbols, stock)
+
+	}
+	err = calibratePortByPortID(port.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	response := map[string]interface{}{
+		"ID":           port.ID,
+		"portName":     port.PortName,
+		"userID":       user.ID,
+		"stockDeleted": deletedSymbols,
+	}
+	c.JSON(http.StatusOK, response)
+
+}
+
+func getTotalStockSumWithRequest(currentStock []models.PortStock, reqStock []itf.StockInfo) (float64, error) {
+	stocksLen := len(currentStock)
+	totalSum := 0.0
+
+	if stocksLen > 0 {
+		for _, stock := range currentStock {
+			totalSum += stock.Total
+		}
+	}
+
+	for _, stock := range reqStock {
+		averagePrice, err := strconv.ParseFloat(stock.AveragePrice, 64)
+		if err != nil {
+			return 0.0, err
+		}
+		totalSum += averagePrice * float64(stock.Volume)
+	}
+
+	return totalSum, nil
+}
+
+func getTotalStockSum(currentStock []models.PortStock) (float64, error) {
+	stocksLen := len(currentStock)
+	totalSum := 0.0
+
+	if stocksLen > 0 {
+		for _, stock := range currentStock {
+			totalSum += stock.Total
+		}
+	}
+
+	return totalSum, nil
+}
+
 func getNameFromToken(c *gin.Context) (string, error) {
 	token := c.GetHeader("token")
 	session := sessions.Default(c)
@@ -272,23 +418,6 @@ func getNameFromToken(c *gin.Context) (string, error) {
 	}
 
 	return username, nil
-}
-
-func CheckToken(c *gin.Context) {
-
-	token := c.GetHeader("token")
-	fmt.Println(token)
-	session := sessions.Default(c)
-
-	session.Set("token", "hehehe")
-
-	username := session.Get(token)
-	test := session.Get("token")
-	fmt.Println(username)
-	fmt.Println(test)
-
-	c.JSON(http.StatusCreated, username)
-
 }
 
 func getUserByUsername(username string) (*models.User, error) {
@@ -316,4 +445,60 @@ func getStocksByPortID(portID uuid.UUID) ([]models.PortStock, error) {
 		return nil, err
 	}
 	return stocks, nil
+}
+
+func getStockByPortIDAndSymbol(portID uuid.UUID, symbol string) (models.PortStock, error) {
+	var stock models.PortStock
+	err := db.DB.Where("user_port_id = ? AND stock_symbol = ?", portID, symbol).First(&stock).Error
+	if err != nil {
+		return stock, err
+	}
+	return stock, nil
+}
+
+func calibratePortByPortID(portID uuid.UUID) error {
+	var stocks []models.PortStock
+	err := db.DB.Where("user_port_id = ?", portID).Find(&stocks).Error
+	if err != nil {
+		return err
+	}
+	for i := range stocks {
+		stock := &stocks[i]
+
+		// Calculate the derived stock values
+		stock.Total = float64(stock.Volume) * stock.AveragePrice
+		stock.ExpectedDivReturn = float64(stock.Volume) * stock.DivPerShare
+		stock.DivInPercent = (stock.DivPerShare / stock.AveragePrice) * 100
+
+		// Save the updated stock to the database
+		if err := db.DB.Save(stock).Error; err != nil {
+			return err
+		}
+	}
+
+	// Retrieve the updated stocks
+	err = db.DB.Where("user_port_id = ?", portID).Find(&stocks).Error
+	if err != nil {
+		return err
+	}
+
+	// Calculate the total stock sum
+	totalSum, err := getTotalStockSum(stocks)
+	if err != nil {
+		return err
+	}
+
+	// Update the derived percentage values and save them to the database
+	for i := range stocks {
+		stock := &stocks[i]
+		stock.PercentageInPort = (stock.Total / totalSum) * 100
+		stock.DivPercentPort = (stock.ExpectedDivReturn / totalSum) * 100
+
+		// Save the updated stock to the database
+		if err := db.DB.Save(stock).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
