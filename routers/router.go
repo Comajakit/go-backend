@@ -27,7 +27,8 @@ func SetupRouter() *gin.Engine {
 	r.POST(port_prefix_path+"/create", handlers.CreatePort)
 	r.POST(port_prefix_path+"/add-strategy", handlers.AddPortStrategy)
 	r.POST(port_prefix_path+"/add-stock", handlers.AddStock)
-	r.POST(port_prefix_path+"/check", handlers.CheckToken)
+	r.PUT(port_prefix_path+"/update-stock", handlers.UpdateStock)
+	r.DELETE(port_prefix_path+"/delete-stock", handlers.DeleteStock)
 
 	return r
 }
