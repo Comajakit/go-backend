@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	db "go-backend/database"
 	"go-backend/database/models"
+	dao "go-backend/database/utils"
 	itf "go-backend/interfaces"
 	"go-backend/types"
 
@@ -62,21 +64,9 @@ func AddPortStrategy(c *gin.Context) {
 		return
 	}
 
-	username, err := getNameFromToken(c)
+	_, user, port, err := getPreRequire(c, req.PortName)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	user, err := getUserByUsername(username)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	port, err := getUserPortByIDAndName(user.ID, req.PortName)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User port not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -152,25 +142,13 @@ func AddStock(c *gin.Context) {
 		return
 	}
 
-	username, err := getNameFromToken(c)
+	_, user, port, err := getPreRequire(c, req.PortName)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, err := getUserByUsername(username)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	port, err := getUserPortByIDAndName(user.ID, req.PortName)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User port not found"})
-		return
-	}
-
-	stocks, err := getStocksByPortID(port.ID)
+	stocks, err := dao.GetStocksByPortID(port.ID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stocks"})
 		return
@@ -250,26 +228,14 @@ func UpdateStock(c *gin.Context) {
 		return
 	}
 
-	username, err := getNameFromToken(c)
+	_, user, port, err := getPreRequire(c, req.PortName)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	user, err := getUserByUsername(username)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	port, err := getUserPortByIDAndName(user.ID, req.PortName)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User port not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
 	for _, stock := range req.Stock {
-		currentStock, err := getStockByPortIDAndSymbol(port.ID, stock.Symbol)
+		currentStock, err := dao.GetStockByPortIDAndSymbol(port.ID, stock.Symbol)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stock"})
 			return
@@ -320,26 +286,14 @@ func DeleteStock(c *gin.Context) {
 		return
 	}
 
-	username, err := getNameFromToken(c)
+	_, user, port, err := getPreRequire(c, req.PortName)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	user, err := getUserByUsername(username)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	port, err := getUserPortByIDAndName(user.ID, req.PortName)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User port not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 	var deletedSymbols []string
 	for _, stock := range req.Stock {
-		currentStock, err := getStockByPortIDAndSymbol(port.ID, stock)
+		currentStock, err := dao.GetStockByPortIDAndSymbol(port.ID, stock)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stock"})
 			return
@@ -365,6 +319,107 @@ func DeleteStock(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, response)
 
+}
+
+func SummaryPort(c *gin.Context) {
+	var req itf.CheckStockRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+		return
+	}
+	_, _, port, err := getPreRequire(c, req.PortName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	stockTypes := make(map[string]float64) // Map to store stock types and their corresponding sum of PercentageInPort
+	var stockPorts []models.PortStock
+	err = db.DB.Where("user_port_id = ?", port.ID).Find(&stockPorts).Error
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	for _, stockPort := range stockPorts {
+		stockTypes[stockPort.StockType] += stockPort.PercentageInPort // Accumulate the sum of PercentageInPort for each stock type
+
+	}
+
+	portStrategy, err := dao.GetPortStrategyByPortID(port.ID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	pair, err := dao.GetStrategyPairPercentage(portStrategy.ID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Print the stock types and their corresponding sum of PercentageInPort
+	themePercentageMap := make(map[string]float64)
+	for _, themePair := range pair {
+		themePercentageMap[themePair.Theme] = themePair.Percentage * 100
+	}
+
+	summary := make(map[string][]types.StockSummary)
+	for stockType, sum := range stockTypes {
+		var stockSymbols []string
+
+		// Check if stockType exists in themePercentageMap
+		if themePercentage, ok := themePercentageMap[stockType]; ok {
+			// Compare stockType sum with corresponding theme percentage
+			if sum > themePercentage {
+				// Add stock symbols with stockType as "Sell"
+				for _, stockPort := range stockPorts {
+					if stockPort.StockType == stockType {
+						stockSymbols = append(stockSymbols, stockPort.StockSymbol)
+					}
+				}
+				summary["sell"] = append(summary["sell"], types.StockSummary{
+					Theme:   stockType,
+					Symbol:  stockSymbols,
+					Target:  fmt.Sprintf("%.2f%%", themePercentage),
+					Current: fmt.Sprintf("%.2f%%", sum),
+				})
+			} else if sum < themePercentage {
+				// Add stock symbols with stockType as "Buy"
+				for _, stockPort := range stockPorts {
+					if stockPort.StockType == stockType {
+						stockSymbols = append(stockSymbols, stockPort.StockSymbol)
+					}
+				}
+				summary["buy"] = append(summary["buy"], types.StockSummary{
+					Theme:   stockType,
+					Symbol:  stockSymbols,
+					Target:  fmt.Sprintf("%.2f%%", themePercentage),
+					Current: fmt.Sprintf("%.2f%%", sum),
+				})
+			}
+		} else {
+			// No matching stockType in themePercentageMap, assume "SELL"
+			for _, stockPort := range stockPorts {
+				if stockPort.StockType == stockType {
+					stockSymbols = append(stockSymbols, stockPort.StockSymbol)
+				}
+			}
+			summary["sell"] = append(summary["sell"], types.StockSummary{
+				Theme:   stockType,
+				Symbol:  stockSymbols,
+				Target:  "",
+				Current: fmt.Sprintf("%.2f%%", sum),
+			})
+		}
+	}
+
+	response := types.SummaryResponse{
+		PortName:     port.PortName,
+		StrategyName: portStrategy.StrategyName,
+		Summary:      summary,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func getTotalStockSumWithRequest(currentStock []models.PortStock, reqStock []itf.StockInfo) (float64, error) {
@@ -420,40 +475,24 @@ func getNameFromToken(c *gin.Context) (string, error) {
 	return username, nil
 }
 
-func getUserByUsername(username string) (*models.User, error) {
-	var user models.User
-	err := db.DB.Where("username = ?", username).First(&user).Error
+func getPreRequire(c *gin.Context, portName string) (string, *models.User, *models.UserPort, error) {
+	username, err := getNameFromToken(c)
 	if err != nil {
-		return nil, err
+		return "", nil, nil, err
 	}
-	return &user, nil
-}
 
-func getUserPortByIDAndName(userID uuid.UUID, portName string) (*models.UserPort, error) {
-	var port models.UserPort
-	err := db.DB.Where("user_id = ? AND port_name = ?", userID, portName).First(&port).Error
+	user, err := dao.GetUserByUsername(username)
 	if err != nil {
-		return nil, err
+		return "", nil, nil, err
 	}
-	return &port, nil
-}
 
-func getStocksByPortID(portID uuid.UUID) ([]models.PortStock, error) {
-	var stocks []models.PortStock
-	err := db.DB.Where("user_port_id = ?", portID).Find(&stocks).Error
+	port, err := dao.GetUserPortByIDAndName(user.ID, portName)
 	if err != nil {
-		return nil, err
+		return "", nil, nil, err
 	}
-	return stocks, nil
-}
 
-func getStockByPortIDAndSymbol(portID uuid.UUID, symbol string) (models.PortStock, error) {
-	var stock models.PortStock
-	err := db.DB.Where("user_port_id = ? AND stock_symbol = ?", portID, symbol).First(&stock).Error
-	if err != nil {
-		return stock, err
-	}
-	return stock, nil
+	return username, user, port, nil
+
 }
 
 func calibratePortByPortID(portID uuid.UUID) error {
