@@ -24,12 +24,17 @@ func SetupRouter() *gin.Engine {
 	r.GET("/protected", handlers.ProtectedRoute)
 
 	//port
+	r.GET(port_prefix_path+"/get-dividend", handlers.GetCurrentDivPercent)
+
 	r.POST(port_prefix_path+"/create", handlers.CreatePort)
-	r.POST(port_prefix_path+"/add-strategy", handlers.AddPortStrategy)
+	r.POST(port_prefix_path+"/add-strategy", handlers.CreatePortStrategy)
 	r.POST(port_prefix_path+"/add-stock", handlers.AddStock)
-	r.PUT(port_prefix_path+"/update-stock", handlers.UpdateStock)
-	r.DELETE(port_prefix_path+"/delete-stock", handlers.DeleteStock)
 	r.POST(port_prefix_path+"/summary", handlers.SummaryPort)
+
+	r.PUT(port_prefix_path+"/update-stock", handlers.UpdateStock)
+	r.PUT(port_prefix_path+"/update-strategy", handlers.UpdateStrategy)
+
+	r.DELETE(port_prefix_path+"/delete-stock", handlers.DeleteStock)
 
 	return r
 }
