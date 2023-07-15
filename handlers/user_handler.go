@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"go-backend/database/models"
@@ -70,24 +69,24 @@ func UserLogin(c *gin.Context) {
 
 		// Create session
 		session := sessions.Default(c)
-		session.Set("token", req.Username)
-		session.Set(accessToken, req.Username+"xxx")
+		session.Set("token", "test")
+		session.Set(accessToken, req.Username)
 
 		// Set session expiration
-		expiration := 3 * 60 * 60 // Default session expiration is 3 hours
-		if req.Forever {
-			expiration = 30 * 24 * 60 * 60 // Set session to expire in 30 days (forever)
-		}
+		// expiration := 3 * 60 * 60 // Default session expiration is 3 hours
+		// if req.Forever {
+		// 	expiration = 30 * 24 * 60 * 60 // Set session to expire in 30 days (forever)
+		// }
 
-		session.Options(sessions.Options{
-			MaxAge:   expiration,
-			HttpOnly: true,
-			Secure:   true, // Set to true if using HTTPS
-		})
-		rm := session.Get("token")
-		fmt.Println(rm)
-		rm2 := session.Get(accessToken)
-		fmt.Println(rm2)
+		// session.Options(sessions.Options{
+		// 	MaxAge:   expiration,
+		// 	HttpOnly: true,
+		// 	Secure:   false, // Set to true if using HTTPS
+		// })
+		// rm := session.Get("token")
+		// fmt.Println(rm)
+		// rm2 := session.Get(accessToken)
+		// fmt.Println("this is token: " + rm2.(string))
 
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to save session"})

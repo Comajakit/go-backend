@@ -34,10 +34,10 @@ func InitDB() {
 	DB = db
 	db.AutoMigrate(
 		&models.User{},
-		&models.Trip{},
-		&models.TripCategory{},
-		&models.TripDetail{},
-		&models.UserTrip{},
+		&models.UserPort{},
+		&models.PortStock{},
+		&models.PortStrategyProfile{},
+		&models.ThemePercentagePair{},
 	)
 }
 
