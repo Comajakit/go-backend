@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	db "go-backend/database"
 	"go-backend/database/models"
 	dao "go-backend/database/utils"
+	"go-backend/interfaces"
 	itf "go-backend/interfaces"
 	"go-backend/types"
 
@@ -229,6 +231,45 @@ func GetCurrentDivPercent(c *gin.Context) {
 
 }
 
+func GetStock(c *gin.Context) {
+	portName := c.Query("portName")
+	_, _, port, err := getPreRequire(c, portName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	stocks, err := dao.GetStocksByPortID(port.ID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stocks"})
+		return
+	}
+
+	// Convert PortStock instances to SimplifiedStock instances
+	var simplifiedStocks []interfaces.SimplifiedStock
+	for _, stock := range stocks {
+		simplifiedStock := interfaces.SimplifiedStock{
+			Total:             stock.Total,
+			DivPerShare:       stock.DivPerShare,
+			DivInPercent:      stock.DivInPercent,
+			ExpectedDivReturn: stock.ExpectedDivReturn,
+			PercentageInPort:  stock.PercentageInPort,
+			DivPercentPort:    stock.DivPercentPort,
+			StockSymbol:       stock.StockSymbol,
+			Volume:            stock.Volume,
+			AveragePrice:      stock.AveragePrice,
+			StockType:         stock.StockType,
+		}
+		simplifiedStocks = append(simplifiedStocks, simplifiedStock)
+	}
+
+	response := interfaces.GetPortResponse{
+		PortName: port.PortName,
+		Stock:    simplifiedStocks,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func AddStock(c *gin.Context) {
 	var req itf.AddStockRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -260,7 +301,7 @@ func AddStock(c *gin.Context) {
 	}
 
 	for _, stock := range req.Stock {
-		divPerShare, err := strconv.ParseFloat(stock.DivPerShare, 64)
+		divYield, err := strconv.ParseFloat(stock.DivYield, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid dividend per share value"})
 			return
@@ -272,8 +313,9 @@ func AddStock(c *gin.Context) {
 			return
 		}
 		total := float64(stock.Volume) * averagePrice
-		divInPercent := (divPerShare / averagePrice) * 100
-		expectedDivReturn := divPerShare * float64(stock.Volume)
+		divInPercent := divYield
+		expectedDivReturn := (total * divInPercent) / 100
+		divPerShare := expectedDivReturn / float64(stock.Volume)
 		stockInfo := models.PortStock{
 			OwnerId:           user.ID,
 			UserPortID:        port.ID,
@@ -289,8 +331,8 @@ func AddStock(c *gin.Context) {
 
 			// Add any additional fields as necessary
 		}
-		if stock.Type != nil {
-			stockInfo.StockType = *stock.Type
+		if stock.Type != "" {
+			stockInfo.StockType = stock.Type
 		}
 
 		if err := db.DB.Create(&stockInfo).Error; err != nil {
@@ -334,22 +376,33 @@ func UpdateStock(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stock"})
 			return
 		}
-		divPerShare, err := strconv.ParseFloat(stock.DivPerShare, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid dividend per share value"})
-			return
+		if stock.DivYield != "" {
+			divYield, err := strconv.ParseFloat(stock.DivYield, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid dividend per share value"})
+				return
+			}
+			currentStock.DivInPercent = divYield
+			currentStock.DivPerShare = (currentStock.AveragePrice * divYield) / 100
+
 		}
 
-		averagePrice, err := strconv.ParseFloat(stock.AveragePrice, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid average price value"})
-			return
+		if stock.AveragePrice != "" {
+			averagePrice, err := strconv.ParseFloat(stock.AveragePrice, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid average price value"})
+				return
+			}
+			currentStock.AveragePrice = averagePrice
+			currentStock.DivPerShare = (averagePrice * currentStock.DivInPercent) / 100
+
 		}
-		currentStock.Volume = uint(stock.Volume)
-		currentStock.DivPerShare = divPerShare
-		currentStock.AveragePrice = averagePrice
-		if stock.Type != nil {
-			currentStock.StockType = *stock.Type
+		if stock.Volume != 0 {
+			currentStock.Volume = uint(stock.Volume)
+		}
+
+		if stock.Type != "" {
+			currentStock.StockType = stock.Type
 		}
 
 		if err := db.DB.Save(currentStock).Error; err != nil {
@@ -551,7 +604,27 @@ func getTotalStockSum(currentStock []models.PortStock) (float64, error) {
 }
 
 func getNameFromToken(c *gin.Context) (string, error) {
-	token := c.GetHeader("token")
+	// Get the token from the Authorization header
+	authHeader := c.GetHeader("Authorization")
+
+	// Check if the Authorization header is empty
+	if authHeader == "" {
+		return "", errors.New("Authorization header not found")
+	}
+	fmt.Println(authHeader)
+	// Extract the token from the Authorization header
+	// Assuming the token is in the format "Bearer <token>"
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	token := tokenParts[1]
+
+	// Print or use the token as needed
+	fmt.Println(token)
+
+	// Your existing code to retrieve the username from the session
 	session := sessions.Default(c)
 	usernameInterface := session.Get(token)
 

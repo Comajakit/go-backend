@@ -5,6 +5,7 @@ go 1.18
 require github.com/spf13/viper v1.16.0
 
 require (
+	github.com/gin-contrib/cors v1.4.0 // indirect
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
@@ -13,6 +14,7 @@ require (
 	github.com/jackc/pgx/v5 v5.3.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/rs/cors v1.10.1 // indirect
 )
 
 require (
