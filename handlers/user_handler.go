@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"go-backend/database/models"
 	itf "go-backend/interfaces"
@@ -48,6 +50,51 @@ func RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
+func NameFromToken(c *gin.Context) {
+	// Get the token from the Authorization header
+	authHeader := c.GetHeader("Authorization")
+	fmt.Println(authHeader)
+
+	// Check if the Authorization header is empty
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header not found"})
+		return
+	}
+
+	// Extract the token from the Authorization header
+	// Assuming the token is in the format "Bearer <token>"
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization header format"})
+		return
+	}
+
+	token := tokenParts[1]
+
+	// Use the default session to retrieve the access token
+	session := sessions.Default(c)
+	// Retrieve the session name from the session data
+
+	// Retrieve the access token from the session
+	accessTokenInterface := session.Get(token)
+
+	// Check if the token exists in the session
+	if accessTokenInterface == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token not found in session"})
+		return
+	}
+
+	// Perform type assertion to retrieve the username as a string
+	accessTokenFromSession, ok := accessTokenInterface.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid access token type"})
+		return
+	}
+
+	// Respond with HTTP OK and JSON body containing the username
+	c.JSON(http.StatusOK, gin.H{"username": accessTokenFromSession})
+}
+
 func UserLogin(c *gin.Context) {
 	var req itf.UserLoginRequest
 
@@ -67,27 +114,17 @@ func UserLogin(c *gin.Context) {
 		// Generate a new access token
 		accessToken := uuid.New().String()
 
-		// Create session
+		// Create the default session
 		session := sessions.Default(c)
-		session.Set("token", "test")
+		session.Options(sessions.Options{Path: "/", MaxAge: 3600}) // Adjust options as needed
+
+		// Set the custom session name as part of the session data
+		session.Set("session_name", "accesstokensession")
+		// Store the access token in the session
 		session.Set(accessToken, req.Username)
+		fmt.Println(accessToken)
 
-		// Set session expiration
-		// expiration := 3 * 60 * 60 // Default session expiration is 3 hours
-		// if req.Forever {
-		// 	expiration = 30 * 24 * 60 * 60 // Set session to expire in 30 days (forever)
-		// }
-
-		// session.Options(sessions.Options{
-		// 	MaxAge:   expiration,
-		// 	HttpOnly: true,
-		// 	Secure:   false, // Set to true if using HTTPS
-		// })
-		// rm := session.Get("token")
-		// fmt.Println(rm)
-		// rm2 := session.Get(accessToken)
-		// fmt.Println("this is token: " + rm2.(string))
-
+		// Save the session
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to save session"})
 			return
@@ -150,7 +187,12 @@ func UserLogin(c *gin.Context) {
 func ProtectedRoute(c *gin.Context) {
 	// Check if the user is authenticated
 	session := sessions.Default(c)
-	username := session.Get("username")
+	token := c.Request.Header
+	username := session.Get(token.Get("token"))
+	sessionID := session
+	fmt.Println(sessionID)
+	rm := session.Get("token")
+	fmt.Println(rm)
 	if username == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
 		return

@@ -6,9 +6,9 @@ type AddStockRequest struct {
 }
 
 type StockInfo struct {
-	Symbol       string  `json:"symbol"`
-	Volume       int     `json:"volume"`
-	AveragePrice string  `json:"averagePrice"`
-	DivPerShare  string  `json:"divPerShare"`
-	Type         *string `json:"type"`
+	Symbol       string `json:"symbol"`
+	Volume       int    `json:"volume"`
+	AveragePrice string `json:"averagePrice"`
+	DivYield     string `json:"divYield"`
+	Type         string `json:"type"`
 }
