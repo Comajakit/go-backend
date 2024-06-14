@@ -52,6 +52,20 @@ func GetStocksByPortID(portID uuid.UUID) ([]models.PortStock, error) {
 	return stocks, nil
 }
 
+func GetStocksTypeByPortID(portID uuid.UUID) ([]string, error) {
+	var types []string
+	err := db.DB.Model(&models.PortStock{}).
+		Where("user_port_id = ?", portID).
+		Select("DISTINCT stock_type").
+		Pluck("stock_type", &types).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return types, nil
+}
+
 func GetStockByPortIDAndSymbol(portID uuid.UUID, symbol string) (models.PortStock, error) {
 	var stock models.PortStock
 	err := db.DB.Where("user_port_id = ? AND stock_symbol = ?", portID, symbol).First(&stock).Error

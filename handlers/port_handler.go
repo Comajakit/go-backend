@@ -17,6 +17,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 func CreatePort(c *gin.Context) {
@@ -468,6 +469,35 @@ func DeleteStock(c *gin.Context) {
 
 }
 
+func SearchType(c *gin.Context) {
+	var req itf.SearchTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+		return
+	}
+
+	_, user, port, err := getPreRequire(c, req.PortName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	types, err := dao.GetStocksTypeByPortID(port.ID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Can't find stock"})
+		return
+	}
+
+	response := map[string]interface{}{
+		"ID":        port.ID,
+		"portName":  port.PortName,
+		"userID":    user.ID,
+		"stockType": types,
+	}
+	c.JSON(http.StatusOK, response)
+
+}
+
 func SummaryPort(c *gin.Context) {
 	var req itf.CheckStockRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -604,6 +634,8 @@ func getTotalStockSum(currentStock []models.PortStock) (float64, error) {
 }
 
 func getNameFromToken(c *gin.Context) (string, error) {
+	log.Info("Get name from token")
+
 	// Get the token from the Authorization header
 	authHeader := c.GetHeader("Authorization")
 
@@ -611,7 +643,7 @@ func getNameFromToken(c *gin.Context) (string, error) {
 	if authHeader == "" {
 		return "", errors.New("Authorization header not found")
 	}
-	fmt.Println(authHeader)
+	log.Info("Auth Header: " + authHeader)
 	// Extract the token from the Authorization header
 	// Assuming the token is in the format "Bearer <token>"
 	tokenParts := strings.Split(authHeader, " ")
@@ -622,7 +654,7 @@ func getNameFromToken(c *gin.Context) (string, error) {
 	token := tokenParts[1]
 
 	// Print or use the token as needed
-	fmt.Println(token)
+	log.Info("Token: " + token)
 
 	// Your existing code to retrieve the username from the session
 	session := sessions.Default(c)
@@ -630,12 +662,14 @@ func getNameFromToken(c *gin.Context) (string, error) {
 
 	// Check if the token exists in the session
 	if usernameInterface == nil {
+		log.Error("token not found in session")
 		return "", errors.New("token not found in session")
 	}
 
 	// Perform type assertion to retrieve the username as a string
 	username, ok := usernameInterface.(string)
 	if !ok {
+		log.Error("invalid username type")
 		return "", errors.New("invalid username type")
 	}
 
@@ -643,6 +677,7 @@ func getNameFromToken(c *gin.Context) (string, error) {
 }
 
 func getPreRequire(c *gin.Context, portName string) (string, *models.User, *models.UserPort, error) {
+	log.Info("Pre-Processing")
 	username, err := getNameFromToken(c)
 	if err != nil {
 		return "", nil, nil, err

@@ -2,6 +2,7 @@ package routers
 
 import (
 	"go-backend/handlers"
+	mylogger "go-backend/log"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -12,6 +13,7 @@ import (
 func SetupRouter(store sessions.Store) *gin.Engine {
 	r := gin.Default()
 	// Use the CORS middleware with Gin
+	r.Use(mylogger.GinLogger())
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3001"},
 		AllowMethods:     []string{"PUT", "PATCH", "POST", "GET", "DELETE"},
@@ -38,6 +40,7 @@ func SetupRouter(store sessions.Store) *gin.Engine {
 	//port
 	r.GET(port_prefix_path+"/get-dividend", handlers.GetCurrentDivPercent)
 	r.GET(port_prefix_path+"/get-port", handlers.GetStock)
+	r.POST(port_prefix_path+"/search", handlers.SearchType)
 
 	r.POST(port_prefix_path+"/create", handlers.CreatePort)
 	r.POST(port_prefix_path+"/add-strategy", handlers.CreatePortStrategy)
