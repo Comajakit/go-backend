@@ -27,19 +27,19 @@ jobs:
       - name: Build Docker image for testing
         run: docker build . -t robot-framework-tests
 
-      - name: Run Robot Framework tests and generate output
-        run: docker run --name robot-tests robot-framework-tests
-
-      - name: Copy test results from container to host
-        run: docker cp robot-tests:/usr/src/app/output.xml output.xml
-
-      - name: Check Test Results
+      - name: Run Robot Framework tests
         run: |
-          if grep -q "FAIL" output.xml; then
-            echo "Some tests failed."
+          docker run --name robot-tests robot-framework-tests
+        continue-on-error: true
+      - name: Check exit status
+        run: |
+          exit_code=$(docker inspect robot-tests --format='{{.State.ExitCode}}')
+          echo "Exit code: $exit_code"
+          if [ "$exit_code" != "0" ]; then
+            echo "Tests failed."
             exit 1
-          else
-            echo "All tests passed."
+          fi
+
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v2
