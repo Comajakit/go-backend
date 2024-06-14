@@ -31,7 +31,7 @@ jobs:
         run: docker run --name robot-tests robot-framework-tests
 
       - name: Copy test results from container to host
-        run: docker cp robot-tests:/usr/src/app/results/output.xml output.xml
+        run: docker cp robot-tests:/usr/src/app/output.xml output.xml
 
       - name: Check Test Results
         run: |
