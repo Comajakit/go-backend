@@ -25,7 +25,7 @@ Open Headless Firefox
 *** Test Cases ***
 Open Google Chrome
     Open Headless Chrome    https://www.google.com
-    Title Should Be    Google
+    Title Should Be    A
     [Teardown]    Close Browser
 
 Open Bing Chrome
@@ -40,5 +40,5 @@ Open Google Firefox
 
 Open Bing Firefox
     Open Headless Firefox    https://www.bing.com
-    Title Should Be    Bing
+    Title Should Be    B
     [Teardown]    Close Browser
