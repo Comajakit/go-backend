@@ -48,4 +48,4 @@ RUN wget -O /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-test
     rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64
 
 # Set the command to run Robot Framework tests
-CMD ["robot", "tests/tests.robot"]
+CMD ["robot", "tests/robot/tests.robot"]
